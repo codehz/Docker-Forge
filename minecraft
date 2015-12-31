@@ -3,7 +3,7 @@ MCSERVER_BIN_PATH="/srv/minecraft-bin"
 MCFORGE_INSTALLER_URL="http://files.minecraftforge.net/maven/net/minecraftforge/forge/$MINECRAFT_VERSION-$MCFORGE_VERSION/forge-$MINECRAFT_VERSION-$MCFORGE_VERSION-installer.jar"
 MC_SERVER_URL="https://s3.amazonaws.com/Minecraft.Download/versions/$MINECRAFT_VERSION/minecraft_server.$MINECRAFT_VERSION.jar"
 MC_SERVER_JAR="minecraft_server.$MINECRAFT_VERSION.jar"
-MCFORGE_SERVER_JAR="forge-$MINECRAFT_VERSION-$MCFORGE_VERSION-universal.jar"
+MCFORGE_SERVER_JAR="minecraftforge-universal-$MINECRAFT_VERSION-$MCFORGE_VERSION.jar"
 
 check_env() {
     if [ "$MINECRAFT_EULA" == "true" ]; then
