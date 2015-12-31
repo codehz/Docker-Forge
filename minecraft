@@ -1,0 +1,135 @@
+#!/bin/bash
+MCSERVER_BIN_PATH="/srv/minecraft-bin"
+MCFORGE_INSTALLER_URL="http://files.minecraftforge.net/maven/net/minecraftforge/forge/$MINECRAFT_VERSION-$MCFORGE_VERSION/forge-$MINECRAFT_VERSION-$MCFORGE_VERSION-installer.jar"
+MC_SERVER_URL="https://s3.amazonaws.com/Minecraft.Download/versions/$MINECRAFT_VERSION/minecraft_server.$MINECRAFT_VERSION.jar"
+MC_SERVER_JAR="minecraft_server.$MINECRAFT_VERSION.jar"
+MCFORGE_SERVER_JAR="forge-$MINECRAFT_VERSION-$MCFORGE_VERSION-universal.jar"
+
+check_env() {
+    if [ "$MINECRAFT_EULA" == "true" ]; then
+        echo "更新 $MCSERVER_PATH/eula.txt"
+        echo "eula=$MINECRAFT_EULA" > $MCSERVER_PATH/eula.txt
+    else
+        >&2 echo "Mojang 要求你必须同意 EULA. 你需要设置 MINECRAFT_EULA 环境变量为 true."
+        exit 1
+    fi
+
+    # Do not allow to run if there is no DEFAULT_OP
+    if [ -z "$DEFAULT_OP" ]; then
+        >&2 echo "DEFAULT_OP 是必要的. 请设置以继续进程."
+        exit 1
+    fi
+}
+
+download_installer() {
+    # Download the Minecraft server installer JAR if it does not exist.
+    if [ ! -f  "$MCSERVER_BIN_PATH/$MCFORGE_SERVER_JAR" ] && [ ! -f "$MCSERVER_BIN_PATH/$MCFORGE_INSTALLER_JAR" ]; then
+        echo "下载 Forge 安装器 $MCFORGE_INSTALLER_JAR ($MCFORGE_INSTALLER_URL)"
+        curl -f -S "$MCFORGE_INSTALLER_URL" -o "$MCSERVER_BIN_PATH/$MCFORGE_INSTALLER_JAR"
+
+        if [ ! -f "$MCSERVER_BIN_PATH/$MCFORGE_INSTALLER_JAR" ]; then
+            >&2 echo "无法下载 $MCFORGE_INSTALLER_JAR."
+            exit 1
+        fi
+    fi
+}
+
+download_mc_server() {
+    if [ ! -f  "$MCSERVER_BIN_PATH/$MCFORGE_SERVER_JAR" ] && [ ! -f "$MCSERVER_BIN_PATH/$MC_SERVER_JAR" ]; then
+        echo "下载 Minecraft 原版服务端 $MCFORGE_SERVER_JAR ($MC_SERVER_URL)"
+        curl -f -S "$MC_SERVER_URL" -o "$MCSERVER_BIN_PATH/$MC_SERVER_JAR"
+        
+        if [ ! -f "$MCSERVER_BIN_PATH/$MC_SERVER_JAR" ]; then
+            >&2 echo "无法下载 $MCFORGE_INSTALLER_JAR."
+            exit 1
+        fi
+    fi
+}
+
+install_server() {
+    # Download the Minecraft server JAR if it does not exist.
+    if [ ! -f  "$MCSERVER_BIN_PATH/$MCFORGE_SERVER_JAR" ] && [ -f "$MCSERVER_BIN_PATH/$MCFORGE_INSTALLER_JAR" ]; then
+        echo "安装 forge V$MCFORGE_VERSION"
+        java -server -jar "$MCSERVER_BIN_PATH/$MCFORGE_INSTALLER_JAR" --installServer
+        if [ ! -f "$MCSERVER_BIN_PATH/$MCFORGE_SERVER_JAR" ]; then
+            >&2 echo "forge安装失败."
+            exit 1
+        fi
+    else
+        echo "无法安装 forge V$MCFORGE_VERSION"
+        echo "$MCSERVER_BIN_PATH/$MCFORGE_INSTALLER_JAR 未找到"
+        rm "$MCSERVER_BIN_PATH/server-installed"
+    fi
+}
+first_run() {
+    if [ ! -f "$MCSERVER_PATH/$MCFORGE_SERVER_JAR" ]; then
+        echo "检测到服务端不存在"
+        echo "复制服务端"
+        cp -sR $MCSERVER_BIN_PATH/* "$MCSERVER_PATH"
+    fi
+    if [ ! -f "$MCSERVER_PATH/server.properties" ]; then
+        echo "检测到没有server.properties"
+        echo "创建 $MCSERVER_PATH/server.properties 开始写入配置"
+        echo "generator-settings=$GENERATOR_SETTINGS" | tee -a $MCSERVER_PATH/server.properties
+        echo "op-permission-level=$OP_PERMISSION_LEVEL" | tee -a $MCSERVER_PATH/server.properties
+        echo "allow-nether=$ALLOW_NETHER" | tee -a $MCSERVER_PATH/server.properties
+        echo "level-name=$LEVEL_NAME" | tee -a $MCSERVER_PATH/server.properties
+        echo "enable-query=$ENABLE_QUERY" | tee -a $MCSERVER_PATH/server.properties
+        echo "allow-flight=$ALLOW_FLIGHT" | tee -a $MCSERVER_PATH/server.properties
+        echo "announce-player-achievements=$ANNOUNCE_PLAYER_ACHIEVEMENTS" | tee -a $MCSERVER_PATH/server.properties
+        echo "server-port=$SERVER_PORT" | tee -a $MCSERVER_PATH/server.properties
+        echo "level-type=$LEVEL_TYPE" | tee -a $MCSERVER_PATH/server.properties
+        echo "enable-rcon=$ENABLE_RCON" | tee -a $MCSERVER_PATH/server.properties
+        echo "rcon.password=$RCON_PASSWORD" | tee -a $MCSERVER_PATH/server.properties
+        echo "rcon-port=$RCON_PORT" | tee -a $MCSERVER_PATH/server.properties
+        echo "force-gamemode=$FORCE_GAMEMODE" | tee -a $MCSERVER_PATH/server.properties
+        echo "level-seed=$LEVEL_SEED" | tee -a $MCSERVER_PATH/server.properties
+        echo "server-ip=$SERVER_IP" | tee -a $MCSERVER_PATH/server.properties
+        echo "max-build-height=$MAX_BUILD_HEIGHT" | tee -a $MCSERVER_PATH/server.properties
+        echo "spawn-npcs=$SPAWN_NPCS" | tee -a $MCSERVER_PATH/server.properties
+        echo "white-list=$WHITE_LIST" | tee -a $MCSERVER_PATH/server.properties
+        echo "spawn-animals=$SPAWN_ANIMALS" | tee -a $MCSERVER_PATH/server.properties
+        echo "snooper-enabled=$SNOOPER_ENABLED" | tee -a $MCSERVER_PATH/server.properties
+        echo "online-mode=$ONLINE_MODE" | tee -a $MCSERVER_PATH/server.properties
+        echo "resource-pack=$RESOURCE_PACK" | tee -a $MCSERVER_PATH/server.properties
+        echo "pvp=$PVP" | tee -a $MCSERVER_PATH/server.properties
+        echo "difficulty=$DIFFICULTY" | tee -a $MCSERVER_PATH/server.properties
+        echo "enable-command-block=$ENABLE_COMMAND_BLOCK" | tee -a $MCSERVER_PATH/server.properties
+        echo "player-idle-timeout=$PLAYER_IDLE_TIMEOUT" | tee -a $MCSERVER_PATH/server.properties
+        echo "gamemode=$GAMEMODE" | tee -a $MCSERVER_PATH/server.properties
+        echo "max-players=$MAX_PLAYERS" | tee -a $MCSERVER_PATH/server.properties
+        echo "spawn-monsters=$SPAWN_MONSTERS" | tee -a $MCSERVER_PATH/server.properties
+        echo "view-distance=$VIEW_DISTANCE" | tee -a $MCSERVER_PATH/server.properties
+        echo "generate-structures=$GENERATE_STRUCTURES" | tee -a $MCSERVER_PATH/server.properties
+        echo "配置写入完毕"
+    fi
+    
+    if [ ! -f $MCSERVER_PATH/ops.json ]; then
+        echo "把 $DEFAULT_OP 添加到 OP 列表."
+        echo "$DEFAULT_OP" > $MCSERVER_PATH/ops.txt
+    fi
+}
+
+update_permissions() {
+    chown -R minecraft:minecraft $MCSERVER_PATH
+}
+
+server_start() {
+    echo "开始启动服务器"
+    java $MINECRAFT_OPTS -jar "$MCSERVER_PATH/$MCFORGE_SERVER_JAR" || echo "服务器异常退出，返回 $? ，请检查配置问题！"
+}
+echo "我的世界Forge服务端启动器 Docker 版(TEST) - 开始执行脚本 目前的参数为 $1"
+case "$1" in
+    install)
+        download_installer
+        download_mc_server
+        install_server
+        ;;
+    run)
+        check_env
+        first_run
+        server_start
+        ;;
+    *)
+        exec "$@"
+esac
